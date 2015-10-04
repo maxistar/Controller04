@@ -2,8 +2,8 @@
 #define ANIMATION_STEP 10
 #define LONG_PRESS 2000  //how long to go into setup mode
 // here is where we define the buttons that we'll use. button "1" is the first, button "6" is the 6th, etc
-int light1_button = 14;
-int light1_led = 6;
+int light1_button = 4;
+int light1_led = 5;
 int light1_on = 0;
 int light1_max = 255;
 int light1_state = 0; //0 ready
