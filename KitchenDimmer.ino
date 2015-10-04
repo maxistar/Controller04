@@ -19,15 +19,22 @@ long light1_pressedTime = 0;
 int light2_button = 15;
 int light2_led = 9;
 int light2_on = 0;
+
  
 // This handy macro lets us determine how big the array up above is, by checking the size
 #define NUMBUTTONS 2
+
+char previousstate[NUMBUTTONS];
+char currentstate[NUMBUTTONS];
+long debounceLastTime;
+
+
  
 // we will track if a button is just pressed, just released, or 'currently pressed' 
-byte pressed[NUMBUTTONS], justpressed[NUMBUTTONS], justreleased[NUMBUTTONS];
+char pressed[NUMBUTTONS], justpressed[NUMBUTTONS], justreleased[NUMBUTTONS];
  
 void setup() {
-  byte i;
+  char i;
  
   // set up serial port
   Serial.begin(9600);
@@ -48,19 +55,13 @@ void setup() {
  
 void check_switches()
 {
-  static byte previousstate[NUMBUTTONS];
-  static byte currentstate[NUMBUTTONS];
-  static long lasttime;
-  byte index;
-  //if (millis() < lasttime) {
-  //   lasttime = millis(); // we wrapped around, lets just try again
-  //}
+  char index;
  
-  if ((lasttime + DEBOUNCE) > millis()) {
+  if ((debounceLastTime + DEBOUNCE) > millis()) {
     return; // not enough time has passed to debounce
   }
   // ok we have waited DEBOUNCE milliseconds, lets reset the timer
-  lasttime = millis();
+  debounceLastTime = millis();
  
   for (index = 0; index < NUMBUTTONS; index++) {
     justpressed[index] = 0;       // when we start, we clear out the "just" indicators
