@@ -1,19 +1,24 @@
-#ifndef SIMPLE_DIMMER_H
-#define SIMPLE_DIMMER_H
+#ifndef LIVING_ROOM_DIMMER_H
+#define LIVING_ROOM_DIMMER_H
 #if ARDUINO >= 100
  #include "Arduino.h"
 #else
  #include "WProgram.h"
 #endif
 
-#include "dimmertypes.h"
+#include "dimmer_types.h"
 
-#define DEBOUNCE 50  // button debouncer, how many ms to debounce, 5+ ms is usually plenty
-#define ANIMATION_STEP 10
-#define LONG_PRESS 2000  //how long to go into setup mode
+void LivingRoomDimmer::loop() {
+  
+}
+
+void LivingRoomDimmer::init() {
+  
+}
 
 
-void simpleDimmerSetup(int buttonPin, int ledPin, SimpleDimmer &sd){
+/*
+void livingRoomDimmerSetup(int buttonPin, int ledPin, LivingRoomDimmer &sd){
   // here is where we define the buttons that we'll use. button "1" is the first, button "6" is the 6th, etc
   sd.light1_button = buttonPin;
   sd.light1_led = ledPin;
@@ -37,7 +42,7 @@ void simpleDimmerSetup(int buttonPin, int ledPin, SimpleDimmer &sd){
   pinMode(sd.light1_led, OUTPUT); 
 } 
 
-void check_switches(SimpleDimmer &sd)
+void livingRoomDimmerCheckSwitches(LivingRoomDimmer &sd)
 {
   sd.justreleased = 0;
   sd.justpressed = 0;
@@ -68,7 +73,7 @@ void check_switches(SimpleDimmer &sd)
 }
 
 
-void pressButton(SimpleDimmer &sd) {
+void livingRoomDimmerPressButton(LivingRoomDimmer &sd) {
     sd.light1_pressedTime = millis();
     if (sd.light1_on == 1) {
        sd.light1_on = 0;
@@ -82,7 +87,7 @@ void pressButton(SimpleDimmer &sd) {
     }
 }
 
-void buttonReleased(SimpleDimmer &sd) {
+void livingRoomDimmerButtonReleased(LivingRoomDimmer &sd) {
     sd.light1_pressedTime = 0;
     if (sd.light1_setupMode == 1) {
        sd.light1_setupMode = 0;
@@ -91,7 +96,7 @@ void buttonReleased(SimpleDimmer &sd) {
     }
 }
   
-void doAnimation(SimpleDimmer &sd) {
+void livingRoomDimmerDoAnimation(LivingRoomDimmer &sd) {
   if ((sd.lasttime + ANIMATION_STEP) > millis()) {
     return; // not enough time has passed
   }
@@ -133,7 +138,7 @@ void doAnimation(SimpleDimmer &sd) {
    }
 }
 
-void button1_keepPressed(SimpleDimmer &sd) {
+void livingRoomDimmerKeepPressed(LivingRoomDimmer &sd) {
    if (sd.light1_setupMode == 1) {
       return; //no need it 
    }
@@ -150,21 +155,21 @@ void button1_keepPressed(SimpleDimmer &sd) {
    }  
 }
 
-void simpleDimmerLoop(SimpleDimmer &sd) {
-  check_switches(sd);      // when we check the switches we'll get the current state
+void livingRoomDimmerLoop(LivingRoomDimmer &sd) {
+    livingRoomDimmerCheckSwitches(sd);      // when we check the switches we'll get the current state
  
     if (sd.justpressed) {
-      pressButton(sd);
+      livingRoomDimmerPressButton(sd);
     }
     if (sd.justreleased) {
-      buttonReleased(sd);
+      livingRoomDimmerButtonReleased(sd);
 
     }
     if (sd.pressed) {
-      button1_keepPressed(sd);
+      livingRoomDimmerKeepPressed(sd);
     }
-  doAnimation(sd);  
+    livingRoomDimmerDoAnimation(sd);  
 }
-
+*/
 #endif
 
