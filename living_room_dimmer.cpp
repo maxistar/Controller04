@@ -7,169 +7,138 @@
 #endif
 
 #include "dimmer_types.h"
+#include "living_room_dimmer.h"
 
-void LivingRoomDimmer::loop() {
+#define STATE_SWITCH_TIMEOUT 2000 
+
+void LivingRoomDimmer::setup() {
+    pinMode(this->buttonPin, INPUT);
+    digitalWrite(this->buttonPin, HIGH);
+    pinMode(this->light1Pin, OUTPUT);
+    pinMode(this->light2Pin, OUTPUT);  
+}
+
+LivingRoomDimmer::LivingRoomDimmer(int buttonPin, int light1Pin, int light2Pin) {
+    this->buttonPin = buttonPin;
+    this->light1Pin = light1Pin;
+    this->light2Pin = light2Pin;
+  
+    this->lightIsOn = 0;
+    this->lightMode = 0;
+    
+    this->buttonPressedTime = 0;
+    this->setupMode = 0;
+
+    
+    this->modeChangedLastTime = 0;
+  
+    this->debounceLastTime = 0;
+    this->isDebouncing = 0;
   
 }
 
-void LivingRoomDimmer::init() {
-  
-}
 
-
-/*
-void livingRoomDimmerSetup(int buttonPin, int ledPin, LivingRoomDimmer &sd){
-  // here is where we define the buttons that we'll use. button "1" is the first, button "6" is the 6th, etc
-  sd.light1_button = buttonPin;
-  sd.light1_led = ledPin;
-  sd.light1_on = 0;
-  sd.light1_max = 255;
-  sd.light1_state = 0; //0 ready
-  sd.light1_step = 0; //step to go
-  sd.light1_stepSetup = 1;
-  sd.light1_stepLight = 4;
-  sd.light1_value = 0;
-  sd.light1_target = 0;
-  sd.light1_setupMode = 0;
-  sd.light1_pressedTime = 0;
-  sd.lasttime = 0;
-  sd.debounceLastTime = 0;
-  sd.isDebouncing = 0;
-
-  
-  pinMode(sd.light1_button, INPUT);
-  digitalWrite(sd.light1_button, HIGH);
-  pinMode(sd.light1_led, OUTPUT); 
-} 
-
-void livingRoomDimmerCheckSwitches(LivingRoomDimmer &sd)
+void LivingRoomDimmer::checkSwitches()
 {
-  sd.justreleased = 0;
-  sd.justpressed = 0;
-  
-  if (sd.isDebouncing && (sd.debounceLastTime + DEBOUNCE) > millis()) {
-    return; // not enough time has passed to debounce
-  }
-  sd.currentstate = !digitalRead(sd.light1_button);   // read the button
-  
-  if (sd.currentstate != sd.pressed) {
-    if (sd.currentstate == 1) {
-          // just pressed
-          sd.justpressed = 1;
-          sd.pressed = 1;
+    if (this->isDebouncing && (this->debounceLastTime + DEBOUNCE) > millis()) {
+        return; // not enough time has passed to debounce
     }
-    else if (sd.currentstate == 0) {
-          // just released
-          sd.justreleased = 1;
-          sd.pressed = 0;
+    char currentstate = !digitalRead(this->buttonPin);   // read the button
+  
+    if (currentstate != this->pressed) {
+        if (currentstate == 1) {
+            // just pressed
+            this->onButtonPressed();
+            this->pressed = 1;
+        }
+        else if (currentstate == 0) {
+            // just released
+            this->onButtonReleased();
+            this->pressed = 0;
+        }
+        this->isDebouncing = 1;
+    } 
+    else {
+        this->isDebouncing = 0; 
     }
-    sd.isDebouncing = 1;
-  } 
-  else {
-    sd.isDebouncing = 0; 
-  }
-  // ok we have waited DEBOUNCE milliseconds, lets reset the timer
-  sd.debounceLastTime = millis();
+    // ok we have waited DEBOUNCE milliseconds, lets reset the timer
+    this->debounceLastTime = millis();
 }
 
 
-void livingRoomDimmerPressButton(LivingRoomDimmer &sd) {
-    sd.light1_pressedTime = millis();
-    if (sd.light1_on == 1) {
-       sd.light1_on = 0;
-       sd.light1_target = 0;
-       sd.light1_step = -sd.light1_stepLight;
+void LivingRoomDimmer::onButtonPressed() {
+    this->buttonPressedTime = millis();
+    if (this->lightIsOn == 1) {
+       this->lightIsOn = 0;
     }
     else {
-       sd.light1_on = 1;
-       sd.light1_target = sd.light1_max;
-       sd.light1_step = sd.light1_stepLight;
+       this->lightIsOn = 1;
     }
+    this->applyLightMode();
 }
 
-void livingRoomDimmerButtonReleased(LivingRoomDimmer &sd) {
-    sd.light1_pressedTime = 0;
-    if (sd.light1_setupMode == 1) {
-       sd.light1_setupMode = 0;
-       sd.light1_max = sd.light1_value;
-       sd.light1_step = 0;
+void LivingRoomDimmer::onButtonReleased() {
+    this->buttonPressedTime = 0;
+    if (this->setupMode == 1) {
+       this->setupMode = 0;
     }
 }
   
-void livingRoomDimmerDoAnimation(LivingRoomDimmer &sd) {
-  if ((sd.lasttime + ANIMATION_STEP) > millis()) {
-    return; // not enough time has passed
-  }
-  sd.lasttime = millis();
+void LivingRoomDimmer::doSetupModeLoop() {
+    if ((this->modeChangedLastTime + STATE_SWITCH_TIMEOUT) > millis()) {
+        return; // not enough time has passed
+    }
+    this->modeChangedLastTime = millis();
   
-  if (sd.light1_step == 0) return; //no need to animate
-  
-   if (sd.light1_step > 0) {
-       if (sd.light1_value + sd.light1_step > sd.light1_target) {
-           sd.light1_value = sd.light1_target;
-           if (sd.light1_setupMode == 1) {
-               sd.light1_step = -sd.light1_step;
-               sd.light1_target = 0;
-           }
-           else {
-               sd.light1_step = 0; //stop animation
-           }
-       }
-       else {
-           sd.light1_value += sd.light1_step;
-       }
-       analogWrite(sd.light1_led, sd.light1_value);
-   }
-   else {
-       if (sd.light1_value + sd.light1_step < sd.light1_target) {
-           sd.light1_value = sd.light1_target;
-           if (sd.light1_setupMode == 1) {
-               sd.light1_step = -1*sd.light1_step;
-               sd.light1_target = 255;
-           }
-           else {
-               sd.light1_step = 0; //stop animation
-           }
-       }
-       else {
-           sd.light1_value += sd.light1_step;       
-       }
-       analogWrite(sd.light1_led, sd.light1_value);
-   }
+    if (this->lightMode<2) {
+        this->lightMode++;
+    }
+    else {
+        this->lightMode = 0;
+    }
+    this->applyLightMode();
 }
 
-void livingRoomDimmerKeepPressed(LivingRoomDimmer &sd) {
-   if (sd.light1_setupMode == 1) {
-      return; //no need it 
+void LivingRoomDimmer::applyLightMode() {
+    if (this->lightIsOn == 0) {
+        digitalWrite(this->light1Pin, LOW);
+        digitalWrite(this->light2Pin, LOW); 
+    }
+    else if (this->lightMode == 0) {
+        digitalWrite(this->light1Pin, HIGH);
+        digitalWrite(this->light2Pin, HIGH); 
+    }
+    else if (this->lightMode == 1) {
+        digitalWrite(this->light1Pin, LOW);
+        digitalWrite(this->light2Pin, HIGH); 
+    }
+    else if (this->lightMode == 2) {
+        digitalWrite(this->light1Pin, HIGH);
+        digitalWrite(this->light2Pin, LOW); 
+    }
+}
+
+void LivingRoomDimmer::onButtonKeepsPressed() {
+   if (this->setupMode == 1) {
+      this->doSetupModeLoop();
+      return; //no need it - all will be handled in do Animation
    }
-   if (sd.light1_pressedTime + LONG_PRESS < millis()) {
-       sd.light1_setupMode = 1;
-       if (sd.light1_value == 0) {
-          sd.light1_step = sd.light1_stepSetup;
-          sd.light1_target = 255;
-       }
-       else {
-          sd.light1_step = -1*sd.light1_stepSetup;
-          sd.light1_target = 0;
+   if (this->buttonPressedTime + LONG_PRESS < millis()) {
+       this->setupMode = 1;
+       if (!this->lightIsOn) {
+           this->lightIsOn = 1;
+           this->applyLightMode();
        }
    }  
 }
 
-void livingRoomDimmerLoop(LivingRoomDimmer &sd) {
-    livingRoomDimmerCheckSwitches(sd);      // when we check the switches we'll get the current state
+void LivingRoomDimmer::loop() {
+    this->checkSwitches();      // when we check the switches we'll get the current state
  
-    if (sd.justpressed) {
-      livingRoomDimmerPressButton(sd);
+    if (this->pressed) {
+        this->onButtonKeepsPressed();
     }
-    if (sd.justreleased) {
-      livingRoomDimmerButtonReleased(sd);
-
-    }
-    if (sd.pressed) {
-      livingRoomDimmerKeepPressed(sd);
-    }
-    livingRoomDimmerDoAnimation(sd);  
 }
-*/
+
 #endif
 

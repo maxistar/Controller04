@@ -1,24 +1,23 @@
 #include "dimmer_types.h"
 #include "simple_dimmer.h"
 #include "simple_kitchen_dimmer.h"
+#include "living_room_dimmer.h"
 
 
-SimpleDimmer sd1;
-SimpleKitchenDimmer sd2;
-LivingRoomDimmer sd3(1,2,3); //confirm pins when testing
-
+SimpleDimmer sd1(4, 5);
+SimpleKitchenDimmer sd2(6, 3, 12); 
+LivingRoomDimmer sd3(A2,8,7);
  
-void setup() {
-
-  simpleDimmerSetup(4, 5, sd1);
-  simpleKitchenDimmerSetup(6, 3, 12, sd2);
-
-  sd3.init();
+void setup() 
+{
+  sd1.setup();
+  sd2.setup();
+  sd3.setup();
 }
  
-void loop() {
-    simpleDimmerLoop(sd1);
-    simpleKitchenDimmerLoop(sd2);
-    
+void loop() 
+{
+    sd1.loop();
+    sd2.loop();    
     sd3.loop();
 }

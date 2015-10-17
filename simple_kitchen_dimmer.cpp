@@ -1,5 +1,5 @@
-#ifndef SIMPLE_KITHEN_DIMMER_H
-#define SIMPLE_KITHEN_DIMMER_H
+#ifndef SIMPLE_KITCHEN_DIMMER_H
+#define SIMPLE_KITCHEN_DIMMER_H
 #if ARDUINO >= 100
  #include "Arduino.h"
 #else
@@ -7,160 +7,187 @@
 #endif
 
 #include "dimmer_types.h"
+#include "simple_kitchen_dimmer.h"
 
 
-void simpleKitchenDimmerSetup(int buttonPin, int ledPin, int light2Pin, SimpleKitchenDimmer &sd){
+SimpleKitchenDimmer::SimpleKitchenDimmer(int buttonPin, int ledPin, int light2Pin){
   // here is where we define the buttons that we'll use. button "1" is the first, button "6" is the 6th, etc
-  sd.light1_button = buttonPin;
-  sd.light1_led = ledPin;
-  sd.light1_on = 0;
-  sd.light1_max = 255;
-  sd.light1_state = 0; //0 ready
-  sd.light1_step = 0; //step to go
-  sd.light1_stepSetup = 1;
-  sd.light1_stepLight = 4;
-  sd.light1_value = 0;
-  sd.light1_target = 0;
-  sd.light1_setupMode = 0;
-  sd.light1_pressedTime = 0;
-  sd.lasttime = 0;
-  sd.debounceLastTime = 0;
-  sd.isDebouncing = 0;
-
+  this->light1_button = buttonPin;
+  this->light1_led = ledPin;
+  this->light1_on = 0;
+  this->light1_max = 255;
+  this->light1_state = 0; //0 ready
+  this->light1_step = 0; //step to go
+  this->light1_stepSetup = 1;
+  this->light1_stepLight = 4;
+  this->light1_value = 0;
+  this->light1_target = 0;
+  this->light1_setupMode = 0;
+  this->light1_pressedTime = 0;
+  this->lasttime = 0;
+  this->debounceLastTime = 0;
+  this->isDebouncing = 0;
   
-  pinMode(sd.light1_button, INPUT);
-  digitalWrite(sd.light1_button, HIGH);
-  pinMode(sd.light1_led, OUTPUT); 
+  this->light2Pin = light2Pin;
+  this->light2On  = 1;
 } 
 
-void simpleKitchenDimmerCheckSwitches(SimpleKitchenDimmer &sd)
-{
-  sd.justreleased = 0;
-  sd.justpressed = 0;
+void SimpleKitchenDimmer::setup(){
+  pinMode(this->light1_button, INPUT);
+  digitalWrite(this->light1_button, HIGH);
+  pinMode(this->light1_led, OUTPUT); 
   
-  if (sd.isDebouncing && (sd.debounceLastTime + DEBOUNCE) > millis()) {
+  pinMode(this->light2Pin, OUTPUT); 
+  digitalWrite(this->light2Pin, LOW);
+} 
+
+
+void SimpleKitchenDimmer::checkSwitches()
+{
+  if (this->isDebouncing && (this->debounceLastTime + DEBOUNCE) > millis()) {
     return; // not enough time has passed to debounce
   }
-  sd.currentstate = !digitalRead(sd.light1_button);   // read the button
+  this->currentstate = !digitalRead(this->light1_button);   // read the button
   
-  if (sd.currentstate != sd.pressed) {
-    if (sd.currentstate == 1) {
+  if (this->currentstate != this->pressed) {
+    if (this->currentstate == 1) {
           // just pressed
-          sd.justpressed = 1;
-          sd.pressed = 1;
+          this->onButtonPressed();
+          this->pressed = 1;
     }
-    else if (sd.currentstate == 0) {
+    else if (this->currentstate == 0) {
           // just released
-          sd.justreleased = 1;
-          sd.pressed = 0;
+          this->onButtonReleased();
+          this->pressed = 0;
     }
-    sd.isDebouncing = 1;
+    this->isDebouncing = 1;
   } 
   else {
-    sd.isDebouncing = 0; 
+    this->isDebouncing = 0; 
   }
   // ok we have waited DEBOUNCE milliseconds, lets reset the timer
-  sd.debounceLastTime = millis();
+  this->debounceLastTime = millis();
 }
 
 
-void simpleKitchenDimmerPressButton(SimpleKitchenDimmer &sd) {
-    sd.light1_pressedTime = millis();
-    if (sd.light1_on == 1) {
-       sd.light1_on = 0;
-       sd.light1_target = 0;
-       sd.light1_step = -sd.light1_stepLight;
+void SimpleKitchenDimmer::onButtonPressed() {
+    this->light1_pressedTime = millis();
+    if (this->light1_on == 1) {
+       this->light1_on = 0;
+       this->light1_target = 0;
+       this->light1_step = -this->light1_stepLight;
+       digitalWrite(this->light2Pin, LOW);
+       
     }
     else {
-       sd.light1_on = 1;
-       sd.light1_target = sd.light1_max;
-       sd.light1_step = sd.light1_stepLight;
+       this->light1_on = 1;
+       this->light1_target = this->light1_max;
+       this->light1_step = this->light1_stepLight;
+       if (this->light2On) {
+         digitalWrite(this->light2Pin, HIGH);
+       }
     }
 }
 
-void simpleKitchenDimmerButtonReleased(SimpleKitchenDimmer &sd) {
-    sd.light1_pressedTime = 0;
-    if (sd.light1_setupMode == 1) {
-       sd.light1_setupMode = 0;
-       sd.light1_max = sd.light1_value;
-       sd.light1_step = 0;
+void SimpleKitchenDimmer::onButtonReleased() {
+    this->light1_pressedTime = 0;
+    if (this->light1_setupMode == 1) {
+       this->light1_setupMode = 0;
+       this->light1_max = this->light1_value;
+       this->light1_step = 0;
     }
 }
   
-void simpleKitchenDimmerDoAnimation(SimpleKitchenDimmer &sd) {
-  if ((sd.lasttime + ANIMATION_STEP) > millis()) {
+void SimpleKitchenDimmer::doAnimation() {
+  if ((this->lasttime + ANIMATION_STEP) > millis()) {
     return; // not enough time has passed
   }
-  sd.lasttime = millis();
+  this->lasttime = millis();
   
-  if (sd.light1_step == 0) return; //no need to animate
+  if (this->light1_step == 0) return; //no need to animate
   
-   if (sd.light1_step > 0) {
-       if (sd.light1_value + sd.light1_step > sd.light1_target) {
-           sd.light1_value = sd.light1_target;
-           if (sd.light1_setupMode == 1) {
-               sd.light1_step = -sd.light1_step;
-               sd.light1_target = 0;
+   if (this->light1_step > 0) {
+       if (this->light1_value + this->light1_step > this->light1_target) {
+           this->light1_value = this->light1_target;
+           if (this->light1_setupMode == 1) {
+               this->light1_step = -this->light1_step;
+               this->light1_target = 0;
+                              
+               if (this->light2On) {
+                   this->light2On = 0;
+                   digitalWrite(this->light2Pin, LOW);
+               }
+               else {
+                   this->light2On = 1;
+                   digitalWrite(this->light2Pin, HIGH);
+               }
+               
            }
            else {
-               sd.light1_step = 0; //stop animation
+               this->light1_step = 0; //stop animation
            }
        }
        else {
-           sd.light1_value += sd.light1_step;
+           this->light1_value += this->light1_step;
        }
-       analogWrite(sd.light1_led, sd.light1_value);
+       analogWrite(this->light1_led, this->light1_value);
    }
    else {
-       if (sd.light1_value + sd.light1_step < sd.light1_target) {
-           sd.light1_value = sd.light1_target;
-           if (sd.light1_setupMode == 1) {
-               sd.light1_step = -1*sd.light1_step;
-               sd.light1_target = 255;
+       if (this->light1_value + this->light1_step < this->light1_target) {
+           this->light1_value = this->light1_target;
+           if (this->light1_setupMode == 1) {
+               this->light1_step = -1*this->light1_step;
+               this->light1_target = 255;
+               if (this->light2On) {
+                   this->light2On = 0;
+                   digitalWrite(this->light2Pin, LOW);
+               }
+               else {
+                   this->light2On = 1;
+                   digitalWrite(this->light2Pin, HIGH);
+               }
+
            }
            else {
-               sd.light1_step = 0; //stop animation
+               this->light1_step = 0; //stop animation
            }
        }
        else {
-           sd.light1_value += sd.light1_step;       
+           this->light1_value += this->light1_step;       
        }
-       analogWrite(sd.light1_led, sd.light1_value);
+       analogWrite(this->light1_led, this->light1_value);
    }
 }
 
-void simpleKitchenDimmerKeepPressed(SimpleKitchenDimmer &sd) {
-   if (sd.light1_setupMode == 1) {
+void SimpleKitchenDimmer::onButtonKeepsPressed() {
+   if (this->light1_setupMode == 1) {
       return; //no need it 
    }
-   if (sd.light1_pressedTime + LONG_PRESS < millis()) {
-       sd.light1_setupMode = 1;
-       if (sd.light1_value == 0) {
-          sd.light1_step = sd.light1_stepSetup;
-          sd.light1_target = 255;
+   if (this->light1_pressedTime + LONG_PRESS < millis()) {
+       this->light1_on = 1;
+       if (this->light2On) {
+         digitalWrite(this->light2Pin, HIGH);
+       }
+       
+       this->light1_setupMode = 1;
+       if (this->light1_value == 0) {
+          this->light1_step = this->light1_stepSetup;
+          this->light1_target = 255;
        }
        else {
-          sd.light1_step = -1*sd.light1_stepSetup;
-          sd.light1_target = 0;
+          this->light1_step = -1*this->light1_stepSetup;
+          this->light1_target = 0;
        }
    }  
 }
 
-void simpleKitchenDimmerLoop(SimpleKitchenDimmer &sd) {
-  simpleKitchenDimmerCheckSwitches(sd);      // when we check the switches we'll get the current state
+void SimpleKitchenDimmer::loop() {
+    this->checkSwitches();      // when we check the switches we'll get the current state
  
-    if (sd.justpressed) {
-      simpleKitchenDimmerPressButton(sd);
+    if (this->pressed) {
+      this->onButtonKeepsPressed();
     }
-    if (sd.justreleased) {
-      simpleKitchenDimmerButtonReleased(sd);
-
-    }
-    if (sd.pressed) {
-      simpleKitchenDimmerKeepPressed(sd);
-    }
-  simpleKitchenDimmerDoAnimation(sd);  
+    this->doAnimation();  
 }
 
 #endif
-
