@@ -6,20 +6,19 @@
  #include "WProgram.h"
 #endif
 
-#include "dimmer_types.h"
+#include "base_dimmer.h"
 #include "living_room_dimmer.h"
 
 #define STATE_SWITCH_TIMEOUT 2000 
 
 void LivingRoomDimmer::setup() {
-    pinMode(this->buttonPin, INPUT);
-    digitalWrite(this->buttonPin, HIGH);
+    BaseDimmer::setup();
     pinMode(this->light1Pin, OUTPUT);
     pinMode(this->light2Pin, OUTPUT);  
 }
 
 LivingRoomDimmer::LivingRoomDimmer(int buttonPin, int light1Pin, int light2Pin) {
-    this->buttonPin = buttonPin;
+    this->setButton(buttonPin);
     this->light1Pin = light1Pin;
     this->light2Pin = light2Pin;
   
@@ -28,41 +27,7 @@ LivingRoomDimmer::LivingRoomDimmer(int buttonPin, int light1Pin, int light2Pin) 
     
     this->buttonPressedTime = 0;
     this->setupMode = 0;
-
-    
     this->modeChangedLastTime = 0;
-  
-    this->debounceLastTime = 0;
-    this->isDebouncing = 0;
-  
-}
-
-
-void LivingRoomDimmer::checkSwitches()
-{
-    if (this->isDebouncing && (this->debounceLastTime + DEBOUNCE) > millis()) {
-        return; // not enough time has passed to debounce
-    }
-    char currentstate = !digitalRead(this->buttonPin);   // read the button
-  
-    if (currentstate != this->pressed) {
-        if (currentstate == 1) {
-            // just pressed
-            this->onButtonPressed();
-            this->pressed = 1;
-        }
-        else if (currentstate == 0) {
-            // just released
-            this->onButtonReleased();
-            this->pressed = 0;
-        }
-        this->isDebouncing = 1;
-    } 
-    else {
-        this->isDebouncing = 0; 
-    }
-    // ok we have waited DEBOUNCE milliseconds, lets reset the timer
-    this->debounceLastTime = millis();
 }
 
 
@@ -132,13 +97,8 @@ void LivingRoomDimmer::onButtonKeepsPressed() {
    }  
 }
 
-void LivingRoomDimmer::loop() {
-    this->checkSwitches();      // when we check the switches we'll get the current state
- 
-    if (this->pressed) {
-        this->onButtonKeepsPressed();
-    }
-}
+
+
 
 #endif
 

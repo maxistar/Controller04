@@ -1,4 +1,4 @@
-#include "dimmer_types.h"
+#include "base_dimmer.h"
 #include "simple_dimmer.h"
 #include "simple_kitchen_dimmer.h"
 #include "living_room_dimmer.h"

@@ -1,8 +1,7 @@
 #include "Arduino.h"
 
-class SimpleKitchenDimmer {
+class SimpleKitchenDimmer: public BaseDimmer {
     // here is where we define the buttons that we'll use. button "1" is the first, button "6" is the 6th, etc
-    int light1_button;
     int light1_led;
     int light1_on;
     int light1_max;
@@ -15,18 +14,12 @@ class SimpleKitchenDimmer {
     int light1_setupMode;
     long light1_pressedTime;
 
-    char currentstate;
-    char isDebouncing;
-    long debounceLastTime;
     long lasttime;
 
-    // we will track if a button is just pressed, just released, or 'currently pressed' 
-    char pressed; 
     
     int light2On;
     int light2Pin;
     
-    void checkSwitches();
     void doAnimation();
     void onButtonPressed();
     void onButtonReleased();

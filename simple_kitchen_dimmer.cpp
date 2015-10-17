@@ -6,13 +6,12 @@
  #include "WProgram.h"
 #endif
 
-#include "dimmer_types.h"
+#include "base_dimmer.h"
 #include "simple_kitchen_dimmer.h"
 
 
 SimpleKitchenDimmer::SimpleKitchenDimmer(int buttonPin, int ledPin, int light2Pin){
-  // here is where we define the buttons that we'll use. button "1" is the first, button "6" is the 6th, etc
-  this->light1_button = buttonPin;
+  this->setButton(buttonPin);
   this->light1_led = ledPin;
   this->light1_on = 0;
   this->light1_max = 255;
@@ -25,50 +24,18 @@ SimpleKitchenDimmer::SimpleKitchenDimmer(int buttonPin, int ledPin, int light2Pi
   this->light1_setupMode = 0;
   this->light1_pressedTime = 0;
   this->lasttime = 0;
-  this->debounceLastTime = 0;
-  this->isDebouncing = 0;
   
   this->light2Pin = light2Pin;
   this->light2On  = 1;
 } 
 
 void SimpleKitchenDimmer::setup(){
-  pinMode(this->light1_button, INPUT);
-  digitalWrite(this->light1_button, HIGH);
+  BaseDimmer::setup();
   pinMode(this->light1_led, OUTPUT); 
   
   pinMode(this->light2Pin, OUTPUT); 
   digitalWrite(this->light2Pin, LOW);
 } 
-
-
-void SimpleKitchenDimmer::checkSwitches()
-{
-  if (this->isDebouncing && (this->debounceLastTime + DEBOUNCE) > millis()) {
-    return; // not enough time has passed to debounce
-  }
-  this->currentstate = !digitalRead(this->light1_button);   // read the button
-  
-  if (this->currentstate != this->pressed) {
-    if (this->currentstate == 1) {
-          // just pressed
-          this->onButtonPressed();
-          this->pressed = 1;
-    }
-    else if (this->currentstate == 0) {
-          // just released
-          this->onButtonReleased();
-          this->pressed = 0;
-    }
-    this->isDebouncing = 1;
-  } 
-  else {
-    this->isDebouncing = 0; 
-  }
-  // ok we have waited DEBOUNCE milliseconds, lets reset the timer
-  this->debounceLastTime = millis();
-}
-
 
 void SimpleKitchenDimmer::onButtonPressed() {
     this->light1_pressedTime = millis();
@@ -182,11 +149,7 @@ void SimpleKitchenDimmer::onButtonKeepsPressed() {
 }
 
 void SimpleKitchenDimmer::loop() {
-    this->checkSwitches();      // when we check the switches we'll get the current state
- 
-    if (this->pressed) {
-      this->onButtonKeepsPressed();
-    }
+    BaseDimmer::loop();
     this->doAnimation();  
 }
 

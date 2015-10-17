@@ -1,8 +1,7 @@
 #include "Arduino.h"
 
 
-class LivingRoomDimmer {
-    int buttonPin;
+class LivingRoomDimmer: public BaseDimmer {
     int light1Pin;
     int light2Pin;
     
@@ -10,19 +9,10 @@ class LivingRoomDimmer {
     int lightIsOn; //1 if light is on
     int lightMode; //0 - light1 is on, light2 is on,1 - light1 is off, light2 is on, 2, light1 is on light2 is off
 
-    //debouncing staff
-    char isDebouncing;
-    long debounceLastTime;
-
-    // we will track if a button is just pressed, just released, or 'currently pressed' 
-    char pressed; 
-
-    long buttonPressedTime;
     int setupMode;
 
     long modeChangedLastTime;
 
-    void checkSwitches();
     void onButtonPressed();
     void onButtonReleased();
     void onButtonKeepsPressed();
@@ -31,8 +21,8 @@ class LivingRoomDimmer {
 
     public: 
     LivingRoomDimmer(int buttonPin, int light1Pin, int light2Pin);
-    void loop();
     void setup();
+    
 };
 
 
