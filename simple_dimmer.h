@@ -12,7 +12,7 @@ class SimpleDimmer: public BaseDimmer {
     int light1_target;
     int light1_setupMode;
     long light1_pressedTime;
-    int lasttime;
+    long lasttime;
 
 
     void doAnimation();
