@@ -6,8 +6,9 @@
  #include "WProgram.h"
 #endif
 
-#include "dimmer_types.h"
-#include "simple_switcher.h"
+#include "SimpleSwitcher.h"
+
+#define DEBOUNCE 50  
 
 
 SimpleSwitcher::SimpleSwitcher(int buttonPin, int ledPin){
