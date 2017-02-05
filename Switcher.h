@@ -17,6 +17,7 @@ class Switcher {
 
     public:
     Switcher(int buttonPin);
+    Switcher(int buttonPin, void (*changeCallbackPtr)(char));
     void setChangeCallback(void (*changeCallbackPtr)(char));
     void setPressCallback(void (*pressCallbackPtr)());
     void setReleaseCallback(void (*releaseCallbackPtr)());

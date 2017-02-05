@@ -14,6 +14,11 @@ Switcher::Switcher(int buttonPin){
     this->buttonPin = buttonPin;
 } 
 
+Switcher::Switcher(int buttonPin, void (*changeCallbackPtr)(char)) {
+    this->changeCallbackPtr = changeCallbackPtr;
+    this->buttonPin = buttonPin;
+}
+
 void Switcher::setup(){
     pinMode(this->buttonPin, INPUT_PULLUP);
 } 

@@ -25,6 +25,7 @@ class Ds18b20Sensor {
     
     public:
     Ds18b20Sensor(OneWire *ds, byte* addr, int checkInterval);
+    Ds18b20Sensor(OneWire *ds, byte* addr, int checkInterval, void (*changeCallbackPtr)(float));
     void loop();
     void onTemperatureChanged(void (*changeCallbackPtr)(float));
 };
@@ -48,8 +49,31 @@ Ds18b20Sensor::Ds18b20Sensor(OneWire *_ds, byte* _addr, int _checkInterval) {
         break;
         default:
             return;
-    }
-    
+    }    
+}
+
+Ds18b20Sensor::Ds18b20Sensor(OneWire *_ds, byte* _addr, int _checkInterval, void (*changeCallbackPtr)(float)) {
+    this->ds = _ds;
+    this->addr = _addr;
+    this->checkInterval = _checkInterval;
+    this->lastTempRead = 1;
+    this->temperatureReadStartTime = 0;
+
+    switch (addr[0]) {
+        case 0x10:
+            type_s = 1;
+        break;
+        case 0x28:
+            type_s = 0;
+        break;
+        case 0x22:
+            type_s = 0;
+        break;
+        default:
+            return;
+    }    
+
+    temperatureCallback = changeCallbackPtr;
 }
 
 void Ds18b20Sensor::onTemperatureChanged(void (*changeCallbackPtr)(float)) {

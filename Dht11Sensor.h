@@ -21,6 +21,8 @@ class Dht11Sensor {
   
   public:
   Dht11Sensor(int gpioPin, int checkInterval);
+  Dht11Sensor(int gpioPin, int checkInterval, void (*)(float));
+  Dht11Sensor(int gpioPin, int checkInterval, void (*)(float), void (*)(float));
   void loop();
   void setup();
   void onTemperatureChanged(void (*value)(float));
@@ -30,6 +32,22 @@ class Dht11Sensor {
 Dht11Sensor::Dht11Sensor(int gpioPin, int checkInterval) {
   dht = new DHT(gpioPin, DHT11);
   this->checkInterval = checkInterval;
+  this->humidityCallback = NULL;
+  this->temperatureCallback = NULL;
+}
+
+Dht11Sensor::Dht11Sensor(int gpioPin, int checkInterval, void (*temperatureCallback)(float)) {
+  dht = new DHT(gpioPin, DHT11);
+  this->checkInterval = checkInterval;
+  this->humidityCallback = NULL;
+  this->temperatureCallback = temperatureCallback;
+}
+
+Dht11Sensor::Dht11Sensor(int gpioPin, int checkInterval, void (*temperatureCallback)(float), void (*humidityCallback)(float)) {
+  dht = new DHT(gpioPin, DHT11);
+  this->checkInterval = checkInterval;
+  this->humidityCallback = humidityCallback;
+  this->temperatureCallback = temperatureCallback;
 }
 
 void Dht11Sensor::onTemperatureChanged(void (*value)(float)) {
