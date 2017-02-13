@@ -7,9 +7,12 @@
 #define W2_ON_MASK 0x02
 #define R_ON_MASK 0x04
 #define G_ON_MASK 0x08
-#define B_ON_MASK 0x0F
+#define B_ON_MASK 0x10
 
-#define ANIMATION_STEP 25
+#define ANIMATION_STEP 10
+#define LIGHT_STEP 4
+
+uint16_t *modbusGlobal;
 
 struct LightsState {
   byte w1;
@@ -47,7 +50,7 @@ private:
     byte currentPresetNum = 0;
     LightsState presets[PRESETS_COUNT];
     void restorePresets();
-    char state = 0;
+    byte onValue = 0;
     byte powerState = 0;
 
     SimpleLedDimmer *w1;
@@ -69,9 +72,15 @@ private:
     friend void onPowerOnB(CeilingController *c);
     friend void onPowerOffB(CeilingController *c);
 
+    void copyPresetsToModbus();
+
+    void (*onChangeCallback)(byte value) = NULL;
+    void init(CeilingControllerConfig *config);
 
 public:
     CeilingController(CeilingControllerConfig *config);
+    CeilingController(CeilingControllerConfig *config, void (*onChangeCallback)(byte value));
+
     void setup();
     void loop();
     void on();
@@ -84,12 +93,9 @@ class SimpleLedDimmer {
     int ledPin;
     int powerOn = 0;
     int lightOn = 0;
-    int lightStep = 0; //step to go
     int lightValue = 0;
-    int lightTarget = 0;
-    int lightStepLight = 4;
     uint16_t *maxValue;
-    long lastTime;
+    long lastTime = 0;
     void (*powerOnCallback)(CeilingController *ceilingController) = NULL;
     void (*powerOffCallback)(CeilingController *ceilingController) = NULL;
     CeilingController *ceilingController;
@@ -117,8 +123,6 @@ class SimpleLedDimmer {
     void setup();
 };
 
-
-
 void onPowerOnW1(CeilingController *c) {
     c->onLedPowerOn(W1_ON_MASK);
 };
@@ -144,7 +148,7 @@ void onPowerOffR(CeilingController *c) {
 };
 
 void onPowerOnG(CeilingController *c) {
-    c->onLedPowerOn(W2_ON_MASK);
+    c->onLedPowerOn(G_ON_MASK);
 };
 
 void onPowerOffG(CeilingController *c) {
@@ -160,6 +164,15 @@ void onPowerOffB(CeilingController *c) {
 };
 
 CeilingController::CeilingController(CeilingControllerConfig *config) {
+    init(config);
+};
+
+CeilingController::CeilingController(CeilingControllerConfig *config, void (*onChangeCallback)(byte value)) {
+    init(config);
+    this->onChangeCallback = onChangeCallback;
+};
+
+void CeilingController::init(CeilingControllerConfig *config) {
     this->config = config;
     this->currentPresetNum = 0;
     this->restorePresets();
@@ -170,19 +183,21 @@ CeilingController::CeilingController(CeilingControllerConfig *config) {
     g = new SimpleLedDimmer(this, config->pinG, &config->modbus[config->modbusG], onPowerOnG, onPowerOffG);
     b = new SimpleLedDimmer(this, config->pinB, &config->modbus[config->modbusB], onPowerOnB, onPowerOffB);
 
+    modbusGlobal = config->modbus;
 };
 
 void CeilingController::onLedPowerOn(byte mask) {
-    this->powerState = this->powerState || mask;  
+    this->powerState = this->powerState | mask;  
     if (this->powerState != 0) {
-      digitalWrite(this->config->pinPower, 1);
+        digitalWrite(this->config->pinPower, HIGH);
     }
 };
 
 void CeilingController::onLedPowerOff(byte mask) {
-    this->powerState = this->powerState && !mask;
+    this->powerState = this->powerState & ~mask;
+    //all leds are off
     if (this->powerState == 0) {
-        digitalWrite(this->config->pinPower, 0);
+        digitalWrite(this->config->pinPower, LOW);
     }
 };
 
@@ -198,47 +213,69 @@ void CeilingController::restorePresets() {
     this->presets[i].g = 0;
     this->presets[i].b = 0;
   };
+  this->copyPresetsToModbus();
 };
 
 void CeilingController::setup() {
   this->config->modbus[config->modbusPresetNum] = this->currentPresetNum;
+  pinMode(this->config->pinPower, OUTPUT); 
+
+  w1->setup();
+  w2->setup();
+  r->setup();
+  g->setup();
+  b->setup();
 };
 
 void CeilingController::on() {
-    this->state = 1;
+    if (this->onValue == HIGH) return;    
+    this->onValue = HIGH;
     w1->on();
     w2->on();
     r->on();
     g->on();
     b->on();
+    bitWrite(this->config->modbus[this->config->modbusReadWriteRegisters], this->config->modbusOnBit, 1);
+    if (onChangeCallback) {
+        onChangeCallback(HIGH);
+    }
 };
 
 void CeilingController::off() {
-    this->state = 0;
+    if (this->onValue == LOW) return;
+    this->onValue = LOW;
     w1->off();
     w2->off();
     r->off();
     g->off();
     b->off();
+    bitWrite(this->config->modbus[this->config->modbusReadWriteRegisters], this->config->modbusOnBit, 0);
+    if (onChangeCallback) {
+        onChangeCallback(LOW);
+    }
 };
 
 char CeilingController::isOn() {
-    return this->state;
+    return this->onValue;
 };
 
 char CeilingController::isOff() {
-    return this->state == 0;
+    return this->onValue == 0;
 };
 
-void CeilingController::loop() {
-  if (this->config->modbus[this->config->modbusPresetNum] != this->currentPresetNum) {
-     this->currentPresetNum = this->config->modbus[config->modbusPresetNum];
-     //copy presets to modbus
+void CeilingController::copyPresetsToModbus() {
+  //copy presets to modbus
      this->config->modbus[config->modbusW1] = this->presets[this->currentPresetNum].w1;
      this->config->modbus[config->modbusW2] = this->presets[this->currentPresetNum].w2;
      this->config->modbus[config->modbusR] = this->presets[this->currentPresetNum].r;
      this->config->modbus[config->modbusG] = this->presets[this->currentPresetNum].g;
-     this->config->modbus[config->modbusB] = this->presets[this->currentPresetNum].b;
+     this->config->modbus[config->modbusB] = this->presets[this->currentPresetNum].b;   
+}
+
+void CeilingController::loop() {
+  if (this->config->modbus[this->config->modbusPresetNum] != this->currentPresetNum) {
+     this->currentPresetNum = this->config->modbus[config->modbusPresetNum];
+     this->copyPresetsToModbus();  
   }
 
   if (this->config->modbus[this->config->modbusW1] != this->presets[this->currentPresetNum].w1) {
@@ -260,18 +297,38 @@ void CeilingController::loop() {
   if (this->config->modbus[this->config->modbusB] != this->presets[this->currentPresetNum].b) {
       this->presets[this->currentPresetNum].b = this->config->modbus[this->config->modbusB];
   }
+
+  char modbusOn = bitRead(this->config->modbus[this->config->modbusReadWriteRegisters], this->config->modbusOnBit);
+  if (modbusOn != onValue) {
+      if (this->onValue == 1) {
+          this->off();
+      } else {
+          this->on();
+      }
+  }
+
+
+
+  w1->loop();
+  w2->loop();
+  r->loop();
+  g->loop();
+  b->loop();
+
   
 };
 
 SimpleLedDimmer::SimpleLedDimmer(CeilingController *ceilingController, int ledPin, uint16_t *maxValue) {
   this->ledPin = ledPin;
   this->maxValue = maxValue;
+  this->lastTime = millis();
   this->ceilingController = ceilingController;
 } 
 
 SimpleLedDimmer::SimpleLedDimmer(CeilingController *ceilingController, int ledPin, uint16_t *maxValue, void (*powerOnCallback)(CeilingController *ceilingController), void (*powerOffCallback)(CeilingController *ceilingController)) {
   this->ledPin = ledPin;
   this->maxValue = maxValue;
+  this->lastTime = millis();
   this->ceilingController = ceilingController;
   this->powerOnCallback = powerOnCallback;
   this->powerOffCallback = powerOffCallback;
@@ -279,15 +336,16 @@ SimpleLedDimmer::SimpleLedDimmer(CeilingController *ceilingController, int ledPi
 
 void SimpleLedDimmer::setup(){
     pinMode(this->ledPin, OUTPUT); 
+    analogWrite(this->ledPin, 255);
 } 
 
 void SimpleLedDimmer::setPowerOnCallback(void (*callback)(CeilingController *ceilingController)) {
     powerOnCallback = callback;
 }
+
 void SimpleLedDimmer::setPowerOffCallback(void (*callback)(CeilingController *ceilingController)) {
     powerOffCallback = callback;
 }
-
 
 
 void SimpleLedDimmer::doAnimation() {
@@ -295,43 +353,47 @@ void SimpleLedDimmer::doAnimation() {
     return; // not enough time has passed
   }
   this->lastTime = millis();
+
+  byte target = this->lightOn ? *maxValue : 0;
+  if (this->lightValue == target) return; //no need to animate
   
-  if (this->lightStep == 0) return; //no need to animate
-  
-  if (this->lightStep > 0) { //going up
-       if (this->lightValue + this->lightStep > this->lightTarget) {
-           this->lightValue = this->lightTarget;
-           this->lightStep = 0; //stop animation
+  if (this->lightValue < target) { //going up
+       if (this->lightValue + LIGHT_STEP >= target) {
+           this->lightValue = target;
        }
        else {
-           this->lightValue += this->lightStep;
+           this->lightValue += LIGHT_STEP;
        }
        if (this->powerOn == 0) {
           this->powerOn = 1;
-          this->powerOnCallback(ceilingController);
+          if (this->powerOnCallback != NULL) {
+              this->powerOnCallback(ceilingController);            
+          }
        }
-       analogWrite(this->ledPin, 255-this->lightValue);
+       analogWrite(this->ledPin, 255 - this->lightValue);
    }
    else { //going down
-       if (this->lightValue + this->lightStep < this->lightTarget) {
-           this->lightValue = this->lightTarget;           
-           this->lightStep = 0; //stop animation
+       if (this->lightValue - LIGHT_STEP <= target) {
+           this->lightValue = target;           
            if (this->lightValue == 0) {
                //power off
                this->powerOn = 0;
-               this->powerOffCallback(ceilingController);                
+               if (this->powerOffCallback != NULL) {
+                   this->powerOffCallback(ceilingController);                                
+               }
            }
-           
        }
        else {
-           this->lightValue += this->lightStep;       
+           this->lightValue -= LIGHT_STEP;       
        }
-       analogWrite(this->ledPin, 255-this->lightValue);
+       analogWrite(this->ledPin, 255 - this->lightValue);
    }
 }
 
 void SimpleLedDimmer::loop() {
     this->doAnimation();
+
+    modbusGlobal[6] = *maxValue;
 }
 
 int SimpleLedDimmer::isOn() {
@@ -345,18 +407,12 @@ int SimpleLedDimmer::isOff() {
 
 void SimpleLedDimmer::on() {
     if (this->lightOn) return; //already on, nothing to do
-    
-    this->lightOn = 1;
-    this->lightTarget = *maxValue;
-    this->lightStep = this->lightStepLight;    
+    this->lightOn = 1;    
 }
 
 void SimpleLedDimmer::off() {
     if (this->lightOn == 0) return; //already off, nothing to do
-    
     this->lightOn = 0;
-    this->lightTarget = 0;
-    this->lightStep = -this->lightStepLight;    
 }
 
 
